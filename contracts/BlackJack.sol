@@ -29,6 +29,17 @@ contract BlackJack {
         //Здесь реализуем раздачу карт
     }
 
+    function checkScore(Player memory player) public {
+        require(
+            player.hasCards,
+            "Player doesn't have cards" // у игрока нет карт
+        );
+        uint256 sumPlayer = 0;
+        for (uint256 i = 0; i < player.cards.length; i++) {
+            sumPlayer += player.cards[i].rate;
+        }
+    }
+
     constructor(uint256 amountOfDecks) public {
         require(
             amountOfDecks < 9,
