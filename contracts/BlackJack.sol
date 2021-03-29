@@ -3,80 +3,137 @@ pragma solidity >=0.4.22 <0.9.0;
 
 contract BlackJack {
     struct Player {
-        bytes32 name; //имя игрока
-        uint256 cashAmmount; //колличество денег
-        uint256 chipsAmmount; //количество фишек
+        address playerAddress; //имя игрока
+        uint32 chipsAmmount; //количество фишек
         address delegate; // дилер, с которым он играет
         bool hasCards;
+        bool authorized;
+        uint32 sumPlayer;
         Card[] cards;
     }
     struct Card {
-        bytes32 name; //название карты
-        uint256 rate; //насколько карта сильна
+        string name; //название карты
+        uint8 rate; //насколько карта сильна
     }
-    struct Dealer {
-        bytes32 name; //имя дилера
-        Card[] cards;
-    }
+    uint32 public lastValue;
     Card[] public deck; //колода карт
-    address public dealer;
+    Card[] public dealerCards; //карты дилера
+    address public dealer; //адрес дилера
     mapping(address => Player) public players; // все адреса являются игроками
 
-    function giveCards(address player) public {
+    function authorize(address player, uint32 chips) public dealerOnly {
+        //авторизуем
+        players[player].playerAddress = player;
+        players[player].authorized = true;
+        players[player].hasCards = false;
+        players[player].sumPlayer = 0;
+        players[player].delegate = msg.sender;
+        players[player].chipsAmmount = chips;
+    }
+
+    function giveCards(address player) public dealerOnly {
         //Раздать карты
-        require(msg.sender == dealer, "Only dealer can give cards.");
         require(!players[player].hasCards, "The player already has cards.");
         //Здесь реализуем раздачу карт
+
+        uint256 card1 = rand();
+        uint256 card2 = rand();
+
+        players[player].cards.push(deck[card1]);
+        players[player].cards.push(deck[card2]);
+        players[player].hasCards = true;
     }
 
-    function checkScore(Player memory player) public {
+    function checkScore(address player) public returns (uint32) {
         require(
-            player.hasCards,
+            players[player].hasCards,
             "Player doesn't have cards" // у игрока нет карт
         );
-        uint256 sumPlayer = 0;
-        for (uint256 i = 0; i < player.cards.length; i++) {
-            sumPlayer += player.cards[i].rate;
+        lastValue = 0;
+        for (uint8 i = 0; i < players[player].cards.length; i++) {
+            lastValue += players[player].cards[i].rate;
+        }
+        players[player].sumPlayer = lastValue;
+        return lastValue;
+    }
+
+    constructor() public {
+        dealer = msg.sender;
+
+        //в колоде 52 карты, заполняем их
+        for (uint8 i = 0; i < 4; i++) {
+            //заполняем карты от 2 до 10
+            for (uint8 j = 2; j <= 10; j++) {
+                deck.push(Card({name: uint2str(j), rate: j}));
+            }
+            deck.push(
+                Card({
+                    name: "Jack", //валет
+                    rate: 10
+                })
+            );
+            deck.push(
+                Card({
+                    name: "Lady", //дама
+                    rate: 10
+                })
+            );
+            deck.push(
+                Card({
+                    name: "King", //король
+                    rate: 10
+                })
+            );
+            deck.push(
+                Card({
+                    name: "Ace", //туз
+                    rate: 11
+                })
+            );
         }
     }
 
-    constructor(uint256 amountOfDecks) public {
-        require(
-            amountOfDecks < 9,
-            "You can't create more than 8 decks" // нельзя использовать больше 8 колод (по правилам)
-        );
-        //в колоде 52 карты, заполняем их
-        for (uint256 k = 0; k < amountOfDecks; k++) {
-            for (uint256 i = 0; i < 4; i++) {
-                //заполняем карты от 2 до 10
-                for (uint256 j = 2; j <= 10; j++) {
-                    deck.push(Card({name: bytes32(j), rate: j}));
-                }
-                deck.push(
-                    Card({
-                        name: "Jack", //валет
-                        rate: 10
-                    })
-                );
-                deck.push(
-                    Card({
-                        name: "Lady", //дама
-                        rate: 10
-                    })
-                );
-                deck.push(
-                    Card({
-                        name: "King", //король
-                        rate: 10
-                    })
-                );
-                deck.push(
-                    Card({
-                        name: "Ace", //туз
-                        rate: 11
-                    })
-                );
-            }
+    //Вспомогательные функции
+
+    modifier dealerOnly() {
+        require(msg.sender == dealer, "Only dealer can do this.");
+        _;
+    }
+
+    // Intializing the state variable
+    uint256 randNonce = 0;
+
+    // Defining a function to generate
+    // a random number
+    function rand() internal returns (uint256) {
+        // increase nonce
+        randNonce++;
+        return uint256(keccak256(abi.encodePacked(msg.sender, randNonce))) % 50;
+    }
+
+    function uint2str(uint8 _i)
+        internal
+        pure
+        returns (string memory _uintAsString)
+    {
+        if (_i == 0) {
+            return "0";
         }
+        uint256 j = _i;
+        uint256 len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint256 k = len;
+        while (_i != 0) {
+            k = k - 1;
+            uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            _i /= 10;
+        }
+        return string(bstr);
     }
 }
