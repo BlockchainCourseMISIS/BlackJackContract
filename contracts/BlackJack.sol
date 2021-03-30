@@ -27,7 +27,7 @@ contract BlackJack {
     uint32 public lastValue;
     Card[] public deck; //колода карт
 
-    //address public dealer; //адрес дилера
+
     bool public standP; // сделал ли стэнд игрок
     bool public standD; // сделал ли стэнд дилер
     bool public push;
@@ -35,22 +35,15 @@ contract BlackJack {
     uint256 public value;
 
     uint32 public ammountOfCards;
-    mapping(address => Player) public players; // все адреса являются игроками
 
     event Deposit(address indexed _from, uint256 _value);
-    event Get_Cards(address indexed _from, uint256 last_card, uint256 sum);
+    event Get_Cards(address indexed _from,  uint256 sum);
     event Compare(
         address indexed d,
         uint256 sumd,
         address indexed p,
         uint256 sump
     );
-    enum State {Start, Bet, Stop, Result}
-    State state;
-    modifier inState(State _state) {
-        require(state == _state, "Invalid state.");
-        _;
-    }
     modifier points_player() {
         check_cards();
         require(player.sumPlayer <= 21, "You've lost.Total points over 21");
@@ -59,7 +52,7 @@ contract BlackJack {
 
     modifier points_dealer() {
         check_cards();
-        require(player.sumPlayer <= 17, "Total points over 17");
+        require(dealer.sumDealer <= 17, "Total points over 17");
         _;
     } //? провера суммы баллов дилера
     modifier only_dealer() {
@@ -73,12 +66,12 @@ contract BlackJack {
     }
 
     function choose_dealer() public payable {
-        //state=State.Start;
         dealer.name = msg.sender;
         dealer.cashAmmount = msg.value;
+        emit Deposit(msg.sender, msg.value);
     } // получение адреса дилера
 
-    function choose_player() public payable //inState(State.Start)
+    function choose_player() public payable 
     {
         player.cashAmmount = msg.value;
         player.name = msg.sender;
@@ -88,35 +81,24 @@ contract BlackJack {
     function add_money_player()
         public
         payable
-        //points_player
         only_player
-    //inState(State.Bet)
     {
         player.cashAmmount += msg.value;
+        emit Deposit(msg.sender, msg.value);
     } // увеличение ставки
 
     function add_money_dealer()
         public
         payable
-        //points_dealer
         only_dealer
-    //inState(State.Bet)
     {
         dealer.cashAmmount += msg.value;
+        emit Deposit(msg.sender, msg.value);
         require(
             (player.cashAmmount) == dealer.cashAmmount,
             "Rates must be the same."
         );
     } // увеличение ставки
-
-    // function authorize(address player, uint32 chips) public dealerOnly {
-    //     //авторизуем
-    //     players[player].playerAddress = player;
-    //     players[player].authorized = true;
-    //     players[player].hasCards = false;
-    //     players[player].sumPlayer = 0;
-    //     players[player].chipsAmmount = chips;
-    // }
 
     function giveToPlayer(uint256 card) private {
         player.cards.push(deck[card]);
@@ -130,7 +112,7 @@ contract BlackJack {
         //Раздать карты
         require(!player.hasCards, "The player already has cards.");
         require(deck.length != 0, "No more cards in the deck!");
-        //Здесь реализуем раздачу карт
+
 
         //если дилер выдает сам себе карту
         uint256 card = rand();
@@ -149,28 +131,30 @@ contract BlackJack {
         player.hasCards = true;
     }
 
-    function hit() public {
+    function hit_dealer() 
+    public
+    only_dealer
+    points_dealer
+     {
         //взять еще одну карту
-        if (msg.sender == dealer.name) {
-            require(
-                dealer.sumDealer < 17,
-                "Dealer can't hit if he has more than 16 points"
-            );
             uint256 cardDealer = rand();
             dealer.cards.push(deck[cardDealer]);
             dealer.sumDealer += deck[cardDealer].rate;
             deck[cardDealer] = deck[ammountOfCards - 1];
             delete deck[ammountOfCards - 1];
             ammountOfCards--;
-        } else {
-            require(
-                players[msg.sender].sumPlayer < 22,
-                "Player can't hit if he has more than 21 points"
-            );
+            emit Get_Cards(dealer.name,  dealer.sumDealer);
+    }
+    function hit_player() 
+        public
+        only_player
+        points_player
+        {
             uint256 cardPlayer = rand();
             giveToPlayer(cardPlayer);
+            emit Get_Cards(player.name,  player.sumPlayer );
         }
-    }
+    
 
     function stand() public {
         // завершить набор карт
@@ -188,7 +172,7 @@ contract BlackJack {
             "Player doesn't have cards" // у игрока нет карт
         );
         player.sumPlayer = 0;
-
+        dealer.sumDealer = 0;
         for (uint32 i = 0; i < player.cards.length; i++) {
             player.sumPlayer += player.cards[i].rate;
         }
@@ -211,6 +195,7 @@ contract BlackJack {
             dealer.name.transfer(dealer.cashAmmount + player.cashAmmount);
             winner = dealer.name;
         }
+        emit Compare(dealer.name, dealer.sumDealer,player.name, player.sumPlayer);
     }
 
     function fillDeck() private {
