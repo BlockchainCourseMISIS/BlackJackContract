@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.4.22 <0.7.0;
 
 contract BlackJack {
     struct Player {
-        address playerAddress; //имя игрока
-        uint32 chipsAmmount; //количество фишек
+        address payable name; //имя игрока
+        uint256 cashAmmount; //колличество денег
         bool hasCards;
         bool authorized;
         uint32 sumPlayer;
@@ -14,34 +14,109 @@ contract BlackJack {
         string name; //название карты
         uint8 rate; //насколько карта сильна
     }
+
+    struct Dealer {
+        address payable name; //имя дилера
+        uint256 cashAmmount; //колличество денег
+        uint32 sumDealer; //сумма очков дилера
+        Card[] cards;
+    }
+
+    Player player;
+    Dealer dealer;
     uint32 public lastValue;
     Card[] public deck; //колода карт
-    Card[] public dealerCards; //карты дилера
-    address public dealer; //адрес дилера
+
+    //address public dealer; //адрес дилера
     bool public standP; // сделал ли стэнд игрок
     bool public standD; // сделал ли стэнд дилер
     bool public push;
-    address public winner;
-
+    address public winner; //адрес победителя
     uint256 public value;
 
     uint32 public ammountOfCards;
-    uint256 public sumDealer; // сумма очков
     mapping(address => Player) public players; // все адреса являются игроками
 
-    // function init() public payable {
-    //     dealer = payable(msg.sender);
-    //     value = msg.value;
-    // }
-
-    function authorize(address player, uint32 chips) public dealerOnly {
-        //авторизуем
-        players[player].playerAddress = player;
-        players[player].authorized = true;
-        players[player].hasCards = false;
-        players[player].sumPlayer = 0;
-        players[player].chipsAmmount = chips;
+    event Deposit(address indexed _from, uint256 _value);
+    event Get_Cards(address indexed _from, uint256 last_card, uint256 sum);
+    event Compare(
+        address indexed d,
+        uint256 sumd,
+        address indexed p,
+        uint256 sump
+    );
+    enum State {Start, Bet, Stop, Result}
+    State state;
+    modifier inState(State _state) {
+        require(state == _state, "Invalid state.");
+        _;
     }
+    modifier points_player() {
+        check_cards();
+        require(sum_p <= 21, "You've lost.Total points over 21");
+        _;
+    } // проверка суммы баллов игрока
+
+    modifier points_dealer() {
+        check_cards();
+        require(sum_p <= 17, "Total points over 17");
+        _;
+    } //? провера суммы баллов дилера
+    modifier only_dealer() {
+        require(msg.sender == dealer.name, "Only dealer can call this.");
+        _;
+    }
+
+    modifier only_player() {
+        require(msg.sender == player.name, "Only player can call this.");
+        _;
+    }
+
+    function choose_dealer() public payable {
+        //state=State.Start;
+        dealer.name = msg.sender;
+        dealer.cashAmmount = msg.value;
+    } // получение адреса дилера
+
+    function choose_player() public payable //inState(State.Start)
+    {
+        player.cashAmmount = msg.value;
+        player.name = msg.sender;
+        emit Deposit(msg.sender, msg.value);
+    } // получение адреса игрока
+
+    function add_money_player()
+        public
+        payable
+        //points_player
+        only_player
+    //inState(State.Bet)
+    {
+        player.cashAmmount += msg.value;
+    } // увеличение ставки
+
+    function add_money_dealer()
+        public
+        payable
+        //points_dealer
+        only_dealer
+    //inState(State.Bet)
+    {
+        dealer.cashAmmount += msg.value;
+        require(
+            (player.cashAmmount) == dealer.cashAmmount,
+            "Rates must be the same."
+        );
+    } // увеличение ставки
+
+    // function authorize(address player, uint32 chips) public dealerOnly {
+    //     //авторизуем
+    //     players[player].playerAddress = player;
+    //     players[player].authorized = true;
+    //     players[player].hasCards = false;
+    //     players[player].sumPlayer = 0;
+    //     players[player].chipsAmmount = chips;
+    // }
 
     function proccessCard(address player, uint256 card) private {
         players[player].cards.push(deck[card]);
@@ -51,41 +126,39 @@ contract BlackJack {
         ammountOfCards--;
     }
 
-    function giveCards(address player) public dealerOnly {
+    function giveCards() public dealerOnly {
         //Раздать карты
-        require(!players[player].hasCards, "The player already has cards.");
+        require(!player.hasCards, "The player already has cards.");
         require(deck.length != 0, "No more cards in the deck!");
         //Здесь реализуем раздачу карт
-        if (player == dealer) {
-            //если дилер выдает сам себе карту
-            uint256 card = rand();
-            dealerCards.push(deck[card]);
-            sumDealer += deck[card].rate;
 
-            deck[card] = deck[ammountOfCards - 1];
-            delete deck[ammountOfCards - 1];
-            ammountOfCards--;
-        } else {
-            // если он выдает карту игроку
-            uint256 card1 = rand();
-            uint256 card2 = rand();
-            proccessCard(player, card1);
-            proccessCard(player, card2);
-        }
+        //если дилер выдает сам себе карту
+        uint256 card = rand();
+        dealer.cards.push(deck[card]);
+        dealer.sumDealer += deck[card].rate;
+        deck[card] = deck[ammountOfCards - 1];
+        delete deck[ammountOfCards - 1];
+        ammountOfCards--;
 
-        players[player].hasCards = true;
+        // если он выдает карту игроку
+        uint256 card1 = rand();
+        uint256 card2 = rand();
+        giveToPlayer(player, card1);
+        giveToPlayer(player, card2);
+
+        player.hasCards = true;
     }
 
     function hit() public {
         //взять еще одну карту
         if (msg.sender == dealer) {
             require(
-                sumDealer < 17,
+                dealer.sumDealer < 17,
                 "Dealer can't hit if he has more than 16 points"
             );
             uint256 cardDealer = rand();
-            dealerCards.push(deck[cardDealer]);
-            sumDealer += deck[cardDealer].rate;
+            dealer.cards.push(deck[cardDealer]);
+            dealer.sumDealer += deck[cardDealer].rate;
             deck[cardDealer] = deck[ammountOfCards - 1];
             delete deck[ammountOfCards - 1];
             ammountOfCards--;
@@ -109,35 +182,42 @@ contract BlackJack {
         }
     }
 
-    function checkScore(address player) public returns (uint32) {
+    function checkScore() public {
         require(
-            players[player].hasCards,
+            player.hasCards,
             "Player doesn't have cards" // у игрока нет карт
         );
-        // for (uint8 i = 0; i < players[player].cards.length; i++) {
-        //     lastValue += players[player].cards[i].rate;
-        // }
-        lastValue = players[player].sumPlayer;
-        return lastValue;
-    }
+        require(
+            dealer.hasCards,
+            "Dealer doesn't have cards" // у игрока нет карт
+        );
+        player.sumPlayer = 0;
+
+        for (uint32 i = 0; i < player.cards.length; i++) {
+            player.sumPlayer += player.cards[i].rate;
+        }
+        for (uint32 i = 0; i < dealer.cards.length; i++) {
+            dealer.sumPlayer += dealer.cards[i].rate;
+        }
+    } // подсчет суммы баллов
 
     function checkWinner() public {
         require(standP == true && standD == true, "Not all made 'stand");
-        if (
-            (players[msg.sender].sumPlayer > sumDealer) &&
-            (players[msg.sender].sumPlayer <= 21)
-        ) {
-            winner = msg.sender;
-        } else if (players[msg.sender].sumPlayer == sumDealer) {
+        if ((player.sumPlayer > dealer.sumDealer) && (player.sumPlayer <= 21)) {
+            player.name.transfer(dealer.cashAmmount + player.cashAmmount);
+            winner = player.name;
+        } else if (player.sumPlayer == dealer.sumDealer) {
             push = true;
             winner = address(0);
+            dealer.name.transfer(dealer.cashAmmount);
+            player.name.transfer(player.cashAmmount);
         } else {
+            dealer.name.transfer(dealer.cashAmmount + player.cashAmmount);
             winner = dealer;
         }
     }
 
-    constructor() public {
-        dealer = msg.sender;
+    function fillDeck() private {
         ammountOfCards = 52;
         //в колоде 52 карты, заполняем их
         for (uint8 i = 0; i < 4; i++) {
@@ -170,6 +250,11 @@ contract BlackJack {
                 })
             );
         }
+    }
+
+    constructor() public {
+        dealer = msg.sender;
+        fillDeck();
     }
 
     //Вспомогательные функции
