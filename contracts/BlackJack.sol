@@ -19,6 +19,8 @@ contract BlackJack {
     Card[] public deck; //колода карт
     Card[] public dealerCards; //карты дилера
     address public dealer; //адрес дилера
+    uint32 public ammountOfCards;
+    uint32 public dealerSum;
     mapping(address => Player) public players; // все адреса являются игроками
 
     function authorize(address player, uint32 chips) public dealerOnly {
@@ -31,18 +33,41 @@ contract BlackJack {
         players[player].chipsAmmount = chips;
     }
 
+    function proccessCard(address player, uint256 card) private dealerOnly {
+        players[player].cards.push(deck[card]);
+        deck[card] = deck[ammountOfCards - 1];
+        delete deck[ammountOfCards - 1];
+        ammountOfCards--;
+    }
+
     function giveCards(address player) public dealerOnly {
         //Раздать карты
         require(!players[player].hasCards, "The player already has cards.");
+        require(deck.length != 0, "No more cards in the deck!");
         //Здесь реализуем раздачу карт
+        if (player == dealer) {
+            //если дилер выдает сам себе карту
+            uint256 card = rand();
+            dealerCards.push(deck[card]);
+            dealerSum += deck[card].rate;
 
-        uint256 card1 = rand();
-        uint256 card2 = rand();
+            deck[card] = deck[ammountOfCards - 1];
+            delete deck[ammountOfCards - 1];
+            ammountOfCards--;
+        } else {
+            // если он выдает карту игроку
+            uint256 card1 = rand();
+            uint256 card2 = rand();
+            proccessCard(player, card1);
+            proccessCard(player, card2);
+        }
 
-        players[player].cards.push(deck[card1]);
-        players[player].cards.push(deck[card2]);
         players[player].hasCards = true;
     }
+
+    function hit() public {}
+
+    function push() public {}
 
     function checkScore(address player) public returns (uint32) {
         require(
@@ -59,7 +84,7 @@ contract BlackJack {
 
     constructor() public {
         dealer = msg.sender;
-
+        ammountOfCards = 52;
         //в колоде 52 карты, заполняем их
         for (uint8 i = 0; i < 4; i++) {
             //заполняем карты от 2 до 10
@@ -108,7 +133,9 @@ contract BlackJack {
     function rand() internal returns (uint256) {
         // increase nonce
         randNonce++;
-        return uint256(keccak256(abi.encodePacked(msg.sender, randNonce))) % 50;
+        return
+            uint256(keccak256(abi.encodePacked(msg.sender, randNonce))) %
+            ammountOfCards;
     }
 
     function uint2str(uint8 _i)
