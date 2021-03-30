@@ -53,13 +53,13 @@ contract BlackJack {
     }
     modifier points_player() {
         check_cards();
-        require(sum_p <= 21, "You've lost.Total points over 21");
+        require(player.sumPlayer <= 21, "You've lost.Total points over 21");
         _;
     } // проверка суммы баллов игрока
 
     modifier points_dealer() {
         check_cards();
-        require(sum_p <= 17, "Total points over 17");
+        require(player.sumPlayer <= 17, "Total points over 17");
         _;
     } //? провера суммы баллов дилера
     modifier only_dealer() {
@@ -118,9 +118,9 @@ contract BlackJack {
     //     players[player].chipsAmmount = chips;
     // }
 
-    function proccessCard(address player, uint256 card) private {
-        players[player].cards.push(deck[card]);
-        players[player].sumPlayer += deck[card].rate;
+    function giveToPlayer(uint256 card) private {
+        player.cards.push(deck[card]);
+        player.sumPlayer += deck[card].rate;
         deck[card] = deck[ammountOfCards - 1];
         delete deck[ammountOfCards - 1];
         ammountOfCards--;
@@ -143,15 +143,15 @@ contract BlackJack {
         // если он выдает карту игроку
         uint256 card1 = rand();
         uint256 card2 = rand();
-        giveToPlayer(player, card1);
-        giveToPlayer(player, card2);
+        giveToPlayer(card1);
+        giveToPlayer(card2);
 
         player.hasCards = true;
     }
 
     function hit() public {
         //взять еще одну карту
-        if (msg.sender == dealer) {
+        if (msg.sender == dealer.name) {
             require(
                 dealer.sumDealer < 17,
                 "Dealer can't hit if he has more than 16 points"
@@ -168,28 +168,24 @@ contract BlackJack {
                 "Player can't hit if he has more than 21 points"
             );
             uint256 cardPlayer = rand();
-            proccessCard(msg.sender, cardPlayer);
+            giveToPlayer(cardPlayer);
         }
     }
 
     function stand() public {
         // завершить набор карт
 
-        if (msg.sender == dealer) {
+        if (msg.sender == dealer.name) {
             standD = true;
         } else {
             standP = true;
         }
     }
 
-    function checkScore() public {
+    function check_cards() public {
         require(
             player.hasCards,
             "Player doesn't have cards" // у игрока нет карт
-        );
-        require(
-            dealer.hasCards,
-            "Dealer doesn't have cards" // у игрока нет карт
         );
         player.sumPlayer = 0;
 
@@ -197,7 +193,7 @@ contract BlackJack {
             player.sumPlayer += player.cards[i].rate;
         }
         for (uint32 i = 0; i < dealer.cards.length; i++) {
-            dealer.sumPlayer += dealer.cards[i].rate;
+            dealer.sumDealer += dealer.cards[i].rate;
         }
     } // подсчет суммы баллов
 
@@ -213,7 +209,7 @@ contract BlackJack {
             player.name.transfer(player.cashAmmount);
         } else {
             dealer.name.transfer(dealer.cashAmmount + player.cashAmmount);
-            winner = dealer;
+            winner = dealer.name;
         }
     }
 
@@ -253,14 +249,14 @@ contract BlackJack {
     }
 
     constructor() public {
-        dealer = msg.sender;
+        dealer.name = msg.sender;
         fillDeck();
     }
 
     //Вспомогательные функции
 
     modifier dealerOnly() {
-        require(msg.sender == dealer, "Only dealer can do this.");
+        require(msg.sender == dealer.name, "Only dealer can do this.");
         _;
     }
 
