@@ -27,14 +27,12 @@ contract BlackJack {
     uint32 public lastValue;
     Card[] public deck; //колода карт
 
-
+    address  winner;
     bool public standP; // сделал ли стэнд игрок
     bool public standD; // сделал ли стэнд дилер
-    bool public push;
-    address public winner; //адрес победителя
     uint256 public value;
 
-    uint32 public ammountOfCards;
+    uint32  ammountOfCards;
 
     event Deposit(address indexed _from, uint256 _value);
     event Get_Cards(address indexed _from,  uint256 sum);
@@ -99,16 +97,30 @@ contract BlackJack {
             "Rates must be the same."
         );
     } // увеличение ставки
+ 
+     function giveToPlayer(uint256 card1,uint256 card2)private{
+        player.cards.push(deck[card1]);
+        player.sumPlayer += deck[card1].rate;
+        deck[card1] = deck[ammountOfCards - 1];
+        delete deck[ammountOfCards - 1];
+        ammountOfCards--;
 
-    function giveToPlayer(uint256 card) private {
-        player.cards.push(deck[card]);
+        player.cards.push(deck[card2]);
+        player.sumPlayer += deck[card2].rate;
+        deck[card2] = deck[ammountOfCards - 1];
+        delete deck[ammountOfCards - 1];
+        ammountOfCards--;
+    } 
+      function giveToPlayer(uint256  card) private {
+        Card [] storage  card1=deck;
+        player.cards.push(card1[card]);
         player.sumPlayer += deck[card].rate;
         deck[card] = deck[ammountOfCards - 1];
         delete deck[ammountOfCards - 1];
         ammountOfCards--;
     }
 
-    function giveCards() public dealerOnly {
+    function giveCards() public only_dealer {
         //Раздать карты
         require(!player.hasCards, "The player already has cards.");
         require(deck.length != 0, "No more cards in the deck!");
@@ -125,10 +137,11 @@ contract BlackJack {
         // если он выдает карту игроку
         uint256 card1 = rand();
         uint256 card2 = rand();
-        giveToPlayer(card1);
-        giveToPlayer(card2);
+        
+        giveToPlayer(card1,card2);
 
         player.hasCards = true;
+        emit Compare(dealer.name,dealer.sumDealer, player.name, player.sumPlayer);
     }
 
     function hit_dealer() 
@@ -181,23 +194,28 @@ contract BlackJack {
         }
     } // подсчет суммы баллов
 
-    function checkWinner() public {
+    function checkWinner()  public {
+        require(
+            (player.cashAmmount) == dealer.cashAmmount,
+            "Rates must be the same."
+        );
         require(standP == true && standD == true, "Not all made 'stand");
         if ((player.sumPlayer > dealer.sumDealer) && (player.sumPlayer <= 21)) {
-            player.name.transfer(dealer.cashAmmount + player.cashAmmount);
-            winner = player.name;
-        } else if (player.sumPlayer == dealer.sumDealer) {
-            push = true;
-            winner = address(0);
-            dealer.name.transfer(dealer.cashAmmount);
-            player.name.transfer(player.cashAmmount);
+        player.name.transfer(dealer.cashAmmount + player.cashAmmount);
+        winner = player.name;
+        }else if (player.sumPlayer == dealer.sumDealer) {
+        dealer.name.transfer(dealer.cashAmmount);
+        player.name.transfer(player.cashAmmount);
         } else {
-            dealer.name.transfer(dealer.cashAmmount + player.cashAmmount);
-            winner = dealer.name;
+        dealer.name.transfer(dealer.cashAmmount + player.cashAmmount);
+        winner = dealer.name;
         }
         emit Compare(dealer.name, dealer.sumDealer,player.name, player.sumPlayer);
     }
 
+    function check()public view returns(address){
+        return winner;
+    }
     function fillDeck() private {
         ammountOfCards = 52;
         //в колоде 52 карты, заполняем их
@@ -234,23 +252,18 @@ contract BlackJack {
     }
 
     constructor() public {
-        dealer.name = msg.sender;
         fillDeck();
     }
 
     //Вспомогательные функции
 
-    modifier dealerOnly() {
-        require(msg.sender == dealer.name, "Only dealer can do this.");
-        _;
-    }
 
     // Intializing the state variable
     uint256 randNonce = 0;
 
     // Defining a function to generate
     // a random number
-    function rand() internal returns (uint256) {
+    function rand() internal  returns (uint256) {
         // increase nonce
         randNonce++;
         return
