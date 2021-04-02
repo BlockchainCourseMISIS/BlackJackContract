@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.7.0;
 
 contract BlackJack {
@@ -6,7 +5,6 @@ contract BlackJack {
         address payable name; //имя игрока
         uint256 cashAmmount; //колличество денег
         bool hasCards;
-        bool authorized;
         uint32 sumPlayer;
         Card[] cards;
     }
@@ -24,13 +22,11 @@ contract BlackJack {
 
     Player player;
     Dealer dealer;
-    uint32 public lastValue;
     Card[] public deck; //колода карт
 
     address  winner;
     bool public standP; // сделал ли стэнд игрок
     bool public standD; // сделал ли стэнд дилер
-    uint256 public value;
 
     uint32  ammountOfCards;
 
