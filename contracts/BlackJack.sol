@@ -27,8 +27,9 @@ contract BlackJack {
     address  winner;
     bool public standP; // сделал ли стэнд игрок
     bool public standD; // сделал ли стэнд дилер
-
-    uint32  ammountOfCards;
+    
+    uint32 constant Cards=52;
+    uint32 ammountOfCards;
 
     event Deposit(address  _from, uint256 _value);
     event Get_Cards(address  _from,  uint256 sum);
@@ -117,7 +118,6 @@ contract BlackJack {
     }
 
     function giveCards() public only_dealer {
-        //Раздать карты
         require(!player.hasCards, "The player already has cards.");
         require(deck.length != 0, "No more cards in the deck!");
 
@@ -137,14 +137,13 @@ contract BlackJack {
 
         player.hasCards = true;
         emit Compare(dealer.name,dealer.sumDealer, player.name, player.sumPlayer);
-    }
+    }//Раздать карты
 
     function hit_dealer() 
     public
     only_dealer
     points_dealer
      {
-        //взять еще одну карту
             uint256 cardDealer = rand();
             dealer.cards.push(deck[cardDealer]);
             dealer.sumDealer += deck[cardDealer].rate;
@@ -152,7 +151,7 @@ contract BlackJack {
             delete deck[ammountOfCards - 1];
             ammountOfCards--;
             emit Get_Cards(dealer.name,  dealer.sumDealer);
-    }
+    } //взять еще одну карту
     function hit_player() 
         public
         only_player
@@ -165,14 +164,12 @@ contract BlackJack {
     
 
     function stand() public {
-        // завершить набор карт
-
         if (msg.sender == dealer.name) {
             standD = true;
         } else {
             standP = true;
         }
-    }
+    }// завершить набор карт
 
     function check_cards() public {
         require(
@@ -212,7 +209,7 @@ contract BlackJack {
         return winner;
     }
     function fillDeck() private {
-        ammountOfCards = 52;
+        ammountOfCards = Cards;
         //в колоде 52 карты, заполняем их
         for (uint8 i = 0; i < 4; i++) {
             //заполняем карты от 2 до 10
@@ -255,15 +252,11 @@ contract BlackJack {
     }
 
     //Вспомогательные функции
-
-
-    // Intializing the state variable
+    //Рандом 
     uint256 randNonce = 0;
 
-    // Defining a function to generate
-    // a random number
+
     function rand() internal  returns (uint256) {
-        // increase nonce
         randNonce++;
         return
             uint256(keccak256(abi.encodePacked(msg.sender, randNonce))) %
@@ -279,19 +272,22 @@ contract BlackJack {
             return "0";
         }
         uint256 j = _i;
-        uint256 len;
+        uint256 len = 0;
         while (j != 0) {
             len++;
             j /= 10;
         }
         bytes memory bstr = new bytes(len);
         uint256 k = len;
-        while (_i != 0) {
+        while (true) {
             k = k - 1;
             uint8 temp = (48 + uint8(_i - (_i / 10) * 10));
             bytes1 b1 = bytes1(temp);
             bstr[k] = b1;
             _i /= 10;
+            if (_i!=0){
+                 continue;
+            }else break;
         }
         return string(bstr);
     }
