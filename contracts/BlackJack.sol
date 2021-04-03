@@ -3,7 +3,7 @@ pragma solidity >=0.4.22 <0.7.0;
 contract BlackJack {
     struct Player {
         address payable name; //имя игрока
-        uint256 cashAmmount; //колличество денег
+        uint256 cashAmmount ; //колличество денег
         bool hasCards;
         uint32 sumPlayer;
         Card[] cards;
@@ -15,7 +15,7 @@ contract BlackJack {
 
     struct Dealer {
         address payable name; //имя дилера
-        uint256 cashAmmount; //колличество денег
+        uint256 cashAmmount ; //колличество денег
         uint32 sumDealer; //сумма очков дилера
         Card[] cards;
     }
@@ -30,12 +30,12 @@ contract BlackJack {
 
     uint32  ammountOfCards;
 
-    event Deposit(address indexed _from, uint256 _value);
-    event Get_Cards(address indexed _from,  uint256 sum);
+    event Deposit(address  _from, uint256 _value);
+    event Get_Cards(address  _from,  uint256 sum);
     event Compare(
-        address indexed d,
+        address  d,
         uint256 sumd,
-        address indexed p,
+        address  p,
         uint256 sump
     );
     modifier points_player() {
@@ -48,7 +48,7 @@ contract BlackJack {
         check_cards();
         require(dealer.sumDealer <= 17, "Total points over 17");
         _;
-    } //? провера суммы баллов дилера
+    } // провера суммы баллов дилера
     modifier only_dealer() {
         require(msg.sender == dealer.name, "Only dealer can call this.");
         _;
@@ -122,7 +122,7 @@ contract BlackJack {
         require(deck.length != 0, "No more cards in the deck!");
 
 
-        //если дилер выдает сам себе карту
+        //выдача карт
         uint256 card = rand();
         dealer.cards.push(deck[card]);
         dealer.sumDealer += deck[card].rate;
@@ -130,7 +130,6 @@ contract BlackJack {
         delete deck[ammountOfCards - 1];
         ammountOfCards--;
 
-        // если он выдает карту игроку
         uint256 card1 = rand();
         uint256 card2 = rand();
         
@@ -248,6 +247,10 @@ contract BlackJack {
     }
 
     constructor() public {
+        dealer.cashAmmount=0;
+        player.cashAmmount=0;
+        dealer.sumDealer=0;
+        player.sumPlayer=0;
         fillDeck();
     }
 
