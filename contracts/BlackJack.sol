@@ -3,7 +3,7 @@ pragma solidity >=0.4.22 <0.7.0;
 contract BlackJack {
     struct Player {
         address payable name; //имя игрока
-        uint256 cashAmmount ; //колличество денег
+        uint256 cashAmmount; //колличество денег
         bool hasCards;
         uint32 sumPlayer;
         Card[] cards;
@@ -15,7 +15,7 @@ contract BlackJack {
 
     struct Dealer {
         address payable name; //имя дилера
-        uint256 cashAmmount ; //колличество денег
+        uint256 cashAmmount; //колличество денег
         uint32 sumDealer; //сумма очков дилера
         Card[] cards;
     }
@@ -24,21 +24,16 @@ contract BlackJack {
     Dealer dealer;
     Card[] public deck; //колода карт
 
-    address  winner;
+    address winner;
     bool public standP; // сделал ли стэнд игрок
     bool public standD; // сделал ли стэнд дилер
-    
-    uint32 constant Cards=52;
+
+    uint32 constant Cards = 52;
     uint32 ammountOfCards;
 
-    event Deposit(address  _from, uint256 _value);
-    event Get_Cards(address  _from,  uint256 sum);
-    event Compare(
-        address  d,
-        uint256 sumd,
-        address  p,
-        uint256 sump
-    );
+    event Deposit(address _from, uint256 _value);
+    event Get_Cards(address _from, uint256 sum);
+    event Compare(address d, uint256 sumd, address p, uint256 sump);
     modifier points_player() {
         check_cards();
         require(player.sumPlayer <= 21, "You've lost.Total points over 21");
@@ -66,27 +61,18 @@ contract BlackJack {
         emit Deposit(msg.sender, msg.value);
     } // получение адреса дилера
 
-    function choose_player() public payable 
-    {
+    function choose_player() public payable {
         player.cashAmmount = msg.value;
         player.name = msg.sender;
         emit Deposit(msg.sender, msg.value);
     } // получение адреса игрока
 
-    function add_money_player()
-        public
-        payable
-        only_player
-    {
+    function add_money_player() public payable only_player {
         player.cashAmmount += msg.value;
         emit Deposit(msg.sender, msg.value);
     } // увеличение ставки
 
-    function add_money_dealer()
-        public
-        payable
-        only_dealer
-    {
+    function add_money_dealer() public payable only_dealer {
         dealer.cashAmmount += msg.value;
         emit Deposit(msg.sender, msg.value);
         require(
@@ -94,8 +80,8 @@ contract BlackJack {
             "Rates must be the same."
         );
     } // увеличение ставки
- 
-     function giveToPlayer(uint256 card1,uint256 card2)private{
+
+    function giveToPlayer(uint256 card1, uint256 card2) private {
         player.cards.push(deck[card1]);
         player.sumPlayer += deck[card1].rate;
         deck[card1] = deck[ammountOfCards - 1];
@@ -107,9 +93,10 @@ contract BlackJack {
         deck[card2] = deck[ammountOfCards - 1];
         delete deck[ammountOfCards - 1];
         ammountOfCards--;
-    } 
-      function giveToPlayer(uint256  card) private {
-        Card [] storage  card1=deck;
+    }
+
+    function giveToPlayer(uint256 card) private {
+        Card[] storage card1 = deck;
         player.cards.push(card1[card]);
         player.sumPlayer += deck[card].rate;
         deck[card] = deck[ammountOfCards - 1];
@@ -121,7 +108,6 @@ contract BlackJack {
         require(!player.hasCards, "The player already has cards.");
         require(deck.length != 0, "No more cards in the deck!");
 
-
         //выдача карт
         uint256 card = rand();
         dealer.cards.push(deck[card]);
@@ -132,36 +118,33 @@ contract BlackJack {
 
         uint256 card1 = rand();
         uint256 card2 = rand();
-        
-        giveToPlayer(card1,card2);
+
+        giveToPlayer(card1, card2);
 
         player.hasCards = true;
-        emit Compare(dealer.name,dealer.sumDealer, player.name, player.sumPlayer);
-    }//Раздать карты
+        emit Compare(
+            dealer.name,
+            dealer.sumDealer,
+            player.name,
+            player.sumPlayer
+        );
+    } //Раздать карты
 
-    function hit_dealer() 
-    public
-    only_dealer
-    points_dealer
-     {
-            uint256 cardDealer = rand();
-            dealer.cards.push(deck[cardDealer]);
-            dealer.sumDealer += deck[cardDealer].rate;
-            deck[cardDealer] = deck[ammountOfCards - 1];
-            delete deck[ammountOfCards - 1];
-            ammountOfCards--;
-            emit Get_Cards(dealer.name,  dealer.sumDealer);
+    function hit_dealer() public only_dealer points_dealer {
+        uint256 cardDealer = rand();
+        dealer.cards.push(deck[cardDealer]);
+        dealer.sumDealer += deck[cardDealer].rate;
+        deck[cardDealer] = deck[ammountOfCards - 1];
+        delete deck[ammountOfCards - 1];
+        ammountOfCards--;
+        emit Get_Cards(dealer.name, dealer.sumDealer);
     } //взять еще одну карту
-    function hit_player() 
-        public
-        only_player
-        points_player
-        {
-            uint256 cardPlayer = rand();
-            giveToPlayer(cardPlayer);
-            emit Get_Cards(player.name,  player.sumPlayer );
-        }
-    
+
+    function hit_player() public only_player points_player {
+        uint256 cardPlayer = rand();
+        giveToPlayer(cardPlayer);
+        emit Get_Cards(player.name, player.sumPlayer);
+    }
 
     function stand() public {
         if (msg.sender == dealer.name) {
@@ -169,7 +152,7 @@ contract BlackJack {
         } else {
             standP = true;
         }
-    }// завершить набор карт
+    } // завершить набор карт
 
     function check_cards() public {
         require(
@@ -186,28 +169,34 @@ contract BlackJack {
         }
     } // подсчет суммы баллов
 
-    function checkWinner()  public {
+    function checkWinner() public {
         require(
             (player.cashAmmount) == dealer.cashAmmount,
             "Rates must be the same."
         );
         require(standP == true && standD == true, "Not all made 'stand");
         if ((player.sumPlayer > dealer.sumDealer) && (player.sumPlayer <= 21)) {
-        player.name.transfer(dealer.cashAmmount + player.cashAmmount);
-        winner = player.name;
-        }else if (player.sumPlayer == dealer.sumDealer) {
-        dealer.name.transfer(dealer.cashAmmount);
-        player.name.transfer(player.cashAmmount);
+            player.name.transfer(dealer.cashAmmount + player.cashAmmount);
+            winner = player.name;
+        } else if (player.sumPlayer == dealer.sumDealer) {
+            dealer.name.transfer(dealer.cashAmmount);
+            player.name.transfer(player.cashAmmount);
         } else {
-        dealer.name.transfer(dealer.cashAmmount + player.cashAmmount);
-        winner = dealer.name;
+            dealer.name.transfer(dealer.cashAmmount + player.cashAmmount);
+            winner = dealer.name;
         }
-        emit Compare(dealer.name, dealer.sumDealer,player.name, player.sumPlayer);
+        emit Compare(
+            dealer.name,
+            dealer.sumDealer,
+            player.name,
+            player.sumPlayer
+        );
     }
 
-    function check()public view returns(address){
+    function check() public view returns (address) {
         return winner;
     }
+
     function fillDeck() private {
         ammountOfCards = Cards;
         //в колоде 52 карты, заполняем их
@@ -244,19 +233,18 @@ contract BlackJack {
     }
 
     constructor() public {
-        dealer.cashAmmount=0;
-        player.cashAmmount=0;
-        dealer.sumDealer=0;
-        player.sumPlayer=0;
+        dealer.cashAmmount = 0;
+        player.cashAmmount = 0;
+        dealer.sumDealer = 0;
+        player.sumPlayer = 0;
         fillDeck();
     }
 
     //Вспомогательные функции
-    //Рандом 
+    //Рандом
     uint256 randNonce = 0;
 
-
-    function rand() internal  returns (uint256) {
+    function rand() internal returns (uint256) {
         randNonce++;
         return
             uint256(keccak256(abi.encodePacked(msg.sender, randNonce))) %
@@ -285,9 +273,9 @@ contract BlackJack {
             bytes1 b1 = bytes1(temp);
             bstr[k] = b1;
             _i /= 10;
-            if (_i!=0){
-                 continue;
-            }else break;
+            if (_i != 0) {
+                continue;
+            } else break;
         }
         return string(bstr);
     }
