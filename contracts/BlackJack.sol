@@ -1,6 +1,7 @@
 pragma solidity >=0.4.22 <0.7.0;
+import "./TokenERC20.sol";
 
-contract BlackJack {
+contract BlackJack  {
     struct Player {
         address payable name; //имя игрока
         uint256 cashAmmount; //колличество денег
@@ -12,14 +13,12 @@ contract BlackJack {
         string name; //название карты
         uint8 rate; //насколько карта сильна
     }
-
     struct Dealer {
         address payable name; //имя дилера
         uint256 cashAmmount; //колличество денег
         uint32 sumDealer; //сумма очков дилера
         Card[] cards;
     }
-
     Player player;
     Dealer dealer;
     Card[] public deck; //колода карт
